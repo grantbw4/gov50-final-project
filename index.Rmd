@@ -1,14 +1,254 @@
 ---
 title: "Gov 50 Final Project"
-author: "Your Name Here"
-description: "My final project"
+author: "Grant Williams"
+description: "How have Critics' Reviews Affected the Movie Industry?"
 output:
   distill::distill_article:
     self_contained: false
 ---
 
-
-
 ## Project thoughts
 
-I am interested in exploring data related to...
+I am interested in exploring data related to the effect that movie critics' reviews have on movies' box office sales. As a self-proclaimed movie buff, I am curious if there are certain kinds of movies (R-rated films, comedies, etc) that are particularly impervious or vulnerable to low critical reviews. 
+
+## Proposal
+
+Research Question: How have Critics' Reviews Affected the Movie Industry?
+
+Hypothesis: My hypothesis is that dramas and action movies are much more sensitive
+to low ratings than comedies and horror films. 
+
+Explanatory Variables:
+
+I will look at a movie's audience rating, Rotten Tomatoes score, year of release, and genre to explain
+the adjusted lifteime amount that it grosses.
+
+Outcome Variables:
+
+While we have the data for the non-adjusted lifetime gross of a movie, the
+adjusted lifetime gross, and the number of tickets sold, we will primarily look at
+the Adjusted lifetime gross of the movie because this figure is likely to be the
+most accessible for readers to understand and compare.
+
+The data from this 
+https://www.boxofficemojo.com/chart/top_lifetime_gross_adjusted/?adjust_gross_to=2022&offset=800
+
+```{r}
+
+#Read in Packages
+
+library(tidyverse)
+library(readxl)
+library(fuzzyjoin)
+library(stringdist)
+library(lubridate)
+
+```
+
+```{r}
+
+#Read in the Excel Files
+
+read_excel("rotten_tomatoes_movies.xls") -> movie_database
+read_excel("BoxOfficeMojo.xlsx") -> NumbersData
+
+# Standardize Column Names
+
+colnames(NumbersData)[6] <- "original_release_date"
+
+#Adjust movie_database to match Year
+
+movie_database$original_release_date <- year(movie_database$original_release_date)
+
+#Make Titles all Uppercase
+
+toupper(NumbersData$movie_title) -> NumbersData$movie_title
+
+toupper(movie_database$movie_title) -> movie_database$movie_title
+
+```
+
+```{r}
+
+suppressWarnings({
+
+combined <- data.frame()
+
+for (i in 1:nrow(NumbersData)){
+
+# Ideally, but for now we gonna do something else lol
+stringdist(NumbersData[i, "movie_title"], movie_database$movie_title, method = 'jw') -> answer
+stringdist(NumbersData[i, "original_release_date"], movie_database$original_release_date, method = 'jw') -> answer2
+which.min(answer + answer2) -> index
+
+combined[i,1:6] <- NumbersData[i,1:6] 
+combined[i,7:14] <- movie_database[index,1:8] 
+
+}
+
+})
+
+```
+
+```{r}
+
+#Manually go in and remove incorrect rows in Excel
+
+combined %>% filter(movie_title != movie_title.1 | original_release_date != original_release_date.1) -> combined_to_modify
+
+write_csv(combined_to_modify, "combined_to_modify.csv")
+
+```
+
+```{r}
+
+#Download Fixed Rows and Make Complete Combined File
+
+read_excel("combined_to_modify.xlsx") -> combined_to_modify
+
+combined %>% filter(movie_title == movie_title.1 & original_release_date == original_release_date.1) -> combined
+
+rbind(combined, combined_to_modify) -> combined
+
+rm(combined_to_modify, movie_database, NumbersData, Rank_list, answer, answer2, i, index)
+
+combined[-c(7,10)] -> combined
+
+combined[-11] -> combined
+```
+
+```{r}
+
+# Top 10 Grossing Films Adjusted For Inflation
+
+combined %>% arrange(desc(Adjusted_Lifetime_Gross)) %>% head(n=10) %>% ggplot(aes(x = reorder(movie_title, +Adjusted_Lifetime_Gross), y = Adjusted_Lifetime_Gross)) +
+  geom_bar(stat = "identity") + coord_flip() + labs(title = "Top 10 Highest-Grossing Movies", y = "Adjusted Lifetime Gross (2022 Ticket Prices)", x = "Movie Title")
+
+```
+
+```{r}
+
+suppressWarnings({
+#Adjusted for Inflation
+
+combined %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(title = "Adjusted Lifetime Gross by Rotten Tomatoes Score", x = "Critics' Tomato Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)")
+
+})
+```
+
+```{r}
+
+suppressWarnings({
+#Adjusted for Inflation
+
+combined %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(title = "Adjusted Lifetime Gross by Audience Score", x = "Audience Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)")
+
+})
+```
+```{r}
+
+#Use a Linear Regression Model ton find whether Audience Score or Critics' Score is More Predictive of Lifetime Earnings
+
+lm(Adjusted_Lifetime_Gross ~ tomatometer_rating, data = combined) -> CriticsScore.lm
+
+summary(CriticsScore.lm)$adj.r.squared
+
+lm(Adjusted_Lifetime_Gross ~ audience_rating, data = combined) -> AudienceScore.lm
+
+summary(AudienceScore.lm)$adj.r.squared
+
+
+```
+
+
+```{r}
+
+suppressWarnings({
+  
+#Choose Only Genres Where There Are at Least 30 Movies
+ 
+listofgenres <- c("Action", "Drama", "Science Fiction & Fantasy", "Comedy", "Horror", "Kids & Family", "Mystery", "Animation", "Musical", "Romance", "Classics")
+
+#Of top 1000 most profitable films, how many fall in each category?
+  
+ByGenre <- data.frame(matrix(nrow =1, ncol=2))
+
+colnames(ByGenre)[1] <- "Genre"
+colnames(ByGenre)[2] <- "Count"
+
+for (i in 1: length(listofgenres)){
+  ByGenre[i,1]<- listofgenres[i]
+  ByGenre[i,2] <- combined %>% filter(grepl(listofgenres[i], genres)) %>% count() %>% as.numeric()
+}
+
+  ByGenre %>% ggplot(aes(x = reorder(Genre, +Count), y = Count)) +
+  geom_bar(stat = "identity") + coord_flip() + labs(title = "Highest-Grossing Movies By Genre", y = "Count of Movies of that Genre in the Top 1000", x = "Genre",subtitle = "(Most Movies are Categorized into Multiple Genres)")
+
+})
+
+```
+
+```{r}
+
+#How Closely Correlated is Rotten Tomatoes Score to Gross Amount by Genre
+
+for (i in 1: length(listofgenres)){
+  
+combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Critics' Reviews and Earnings for %s Movies", listofgenres[i]), x = "Rotten Tomatoes Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
+
+print(plot)
+}
+
+```
+```{r}
+
+#How Closely Correlated is Audience Score to Gross Amount by Genre
+
+for (i in 1: length(listofgenres)){
+  
+combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Audicence Score and Earnings for %s Movies", listofgenres[i]), x = "Audience Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
+
+print(plot)
+}
+
+```
+
+```{r}
+
+suppressWarnings({
+#Adjusted for Inflation
+
+combined %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) +
+  geom_point() + 
+  geom_smooth() +
+  ylim(0,2000000000) +
+  labs(title = "Adjusted Lifetime Gross by Rotten Tomatoes Score and Rating", x = "Critics' Tomato Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)") +
+  facet_wrap(~content_rating)
+
+})
+```
+
+```{r}
+
+#How has the average Rotten Tomatoes Score Changed Over the Decades
+
+floor_decade = function(value){ return(value - value %% 10) }
+
+ggplot(combined, aes(x = original_release_date)) + 
+geom_bar() + labs(x = "Year", y = "Number of Top 1000 Highest-Grossing Movies", title = "Number of High-Grossing Movies over the Years") 
+
+ggplot(combined, aes(x = factor(floor_decade(original_release_date)), y = tomatometer_rating)) + 
+  geom_bar(stat = "summary", fun = "mean") + labs(x = "Decade", y = "Average Critics Score", title = "Average Critics Score of Top 1000 Highest-Grossing Movies Over the Decades") 
+
+#How has the average Audience Score Changed Over the Decades
+
+ggplot(combined, aes(x = factor(floor_decade(original_release_date)), y = audience_rating)) + 
+  geom_bar(stat = "summary", fun = "mean") + labs(x = "Decade", y = "Average Audience Rating", title = "Average Critics Score of Top 1000 Highest-Grossing Movies Over the Decades") 
+
+```
