@@ -1,39 +1,27 @@
 ---
 title: "Gov 50 Final Project"
 author: "Grant Williams"
-description: "How have Critics' Reviews Affected the Movie Industry?"
+description: "Evaluating the Relationship Between Movie Reviews and Ticket Sales Across Time"
 output:
   distill::distill_article:
     self_contained: false
 ---
 
-## Project thoughts
+<h5>Introduction:<h5>
 
-I am interested in exploring data related to the effect that movie critics' reviews have on movies' box office sales. As a self-proclaimed movie buff, I am curious if there are certain kinds of movies (R-rated films, comedies, etc) that are particularly impervious or vulnerable to low critical reviews. 
+	I have a habit of absent-mindedly visiting the Rotten Tomatoes website. It’s a fairly bizarre pastime of mine, but [www.rottentomatoes.com](rottentomatoes.com) has consistently ranked among my top five most commonly visited websites for the past few years. For this reason, many of my close friends like to give me a hard time for the undue weight I place upon others’ reviews in selecting a movie to watch. Whether my tendency to defer decision-making to film critics is the product of my own laziness or an aspirational desire to have a “refined” taste in cinematography, I’m unaware; but, regardless, it’s because of this proximity to Rotten Tomatoes that I’m curious to what extent others’ consumption of movies might be influenced by critics’ reviews.
+	
+	Rotten Tomatoes is essentially an aggregator of movie critics’ postings. It calculates weighted averages of films’ reviews, assigning every movie a metaphorical “freshness” percentage—0% being rotten and 100% being perfectly fresh. I am curious what sorts of films are most impervious to poor reviews, whether audience or critics’ reviews are more predictive of box office success, and how movie reviews have shifted over the last several decades. I am also interested in constructing a model that can “predict” a given movie’s box office performance in order to evaluate if certain covariates like genre and audience score are more predictive than others. 
+	
+<h5>Data Description:<h5>
+	
+	The data used in this study is sourced from two locations: an online [kaggle](https://www.kaggle.com/datasets/stefanoleone992/rotten-tomatoes-movies-and-critic-reviews-dataset) database of Rotten Tomatoes reviews and an IMDb database of the top 1000 highest-grossing movies adjusted for inflation. After removing extraneous columns from the Rotten Tomatoes dataset, I was left with data on tens of thousands of movies’ titles, MPAA ratings, genres, release date, “tomatometer” rating, and audience rating. The [IMDb](https://www.boxofficemojo.com/chart/top_lifetime_gross_adjusted/?adjust_gross_to=2022) database contains information on each movie’s rank among the top 1000 highest-grossing movies, title, adjusted lifetime gross, and year of release. In order to study the data, I merged these two databases by release date and movie title. Due to discrepancies in formatting and naming, however, I had to employ a string distance formula to match movies approximately and then manually go through a hundred or so movies to correct incomplete information.
+	
+	Ultimately, I was left with a combined table of 1000 rows that contained all the information from both the IMDb and Rotten Tomatoes databases. Spanning dozens of genres, 70+ years, ratings between 0 and 100, and adjusted lifetime earnings between \$138 million and \$1.895 billion, the 1000 movies represent a wide range of cinematography across decades. As a cross-sectional study, this project synthesizes data to offer snapshots of the many films of the movie industry over time. The primary dependent variable in this study is the adjusted lifetime earnings of each film, and the independent variables are everything else.  
 
-## Proposal
 
-Research Question: How have Critics' Reviews Affected the Movie Industry?
 
-Hypothesis: My hypothesis is that dramas and action movies are much more sensitive
-to low ratings than comedies and horror films. 
-
-Explanatory Variables:
-
-I will look at a movie's audience rating, Rotten Tomatoes score, year of release, and genre to explain
-the adjusted lifteime amount that it grosses.
-
-Outcome Variables:
-
-While we have the data for the non-adjusted lifetime gross of a movie, the
-adjusted lifetime gross, and the number of tickets sold, we will primarily look at
-the Adjusted lifetime gross of the movie because this figure is likely to be the
-most accessible for readers to understand and compare.
-
-The data from this 
-https://www.boxofficemojo.com/chart/top_lifetime_gross_adjusted/?adjust_gross_to=2022&offset=800
-
-```{r}
+```{r, include = FALSE}
 
 #Read in Packages
 
@@ -42,10 +30,6 @@ library(readxl)
 library(fuzzyjoin)
 library(stringdist)
 library(lubridate)
-
-```
-
-```{r}
 
 #Read in the Excel Files
 
@@ -56,7 +40,7 @@ read_excel("BoxOfficeMojo.xlsx") -> NumbersData
 
 colnames(NumbersData)[6] <- "original_release_date"
 
-#Adjust movie_database to match Year
+#Adjust movie_database to match year
 
 movie_database$original_release_date <- year(movie_database$original_release_date)
 
@@ -66,17 +50,14 @@ toupper(NumbersData$movie_title) -> NumbersData$movie_title
 
 toupper(movie_database$movie_title) -> movie_database$movie_title
 
-```
-
-```{r}
-
-suppressWarnings({
+#Use StringDist to Merge the Two Data Frames
 
 combined <- data.frame()
 
+suppressWarnings({
+
 for (i in 1:nrow(NumbersData)){
 
-# Ideally, but for now we gonna do something else lol
 stringdist(NumbersData[i, "movie_title"], movie_database$movie_title, method = 'jw') -> answer
 stringdist(NumbersData[i, "original_release_date"], movie_database$original_release_date, method = 'jw') -> answer2
 which.min(answer + answer2) -> index
@@ -85,22 +66,14 @@ combined[i,1:6] <- NumbersData[i,1:6]
 combined[i,7:14] <- movie_database[index,1:8] 
 
 }
-
+  
 })
-
-```
-
-```{r}
 
 #Manually go in and remove incorrect rows in Excel
 
 combined %>% filter(movie_title != movie_title.1 | original_release_date != original_release_date.1) -> combined_to_modify
 
 write_csv(combined_to_modify, "combined_to_modify.csv")
-
-```
-
-```{r}
 
 #Download Fixed Rows and Make Complete Combined File
 
@@ -117,57 +90,26 @@ combined[-c(7,10)] -> combined
 combined[-11] -> combined
 ```
 
-```{r}
+<h5> An Overview of The Data <h5>
+
+```{r, echo = TRUE}
 
 # Top 10 Grossing Films Adjusted For Inflation
 
 combined %>% arrange(desc(Adjusted_Lifetime_Gross)) %>% head(n=10) %>% ggplot(aes(x = reorder(movie_title, +Adjusted_Lifetime_Gross), y = Adjusted_Lifetime_Gross)) +
   geom_bar(stat = "identity") + coord_flip() + labs(title = "Top 10 Highest-Grossing Movies", y = "Adjusted Lifetime Gross (2022 Ticket Prices)", x = "Movie Title")
+```
+
+```{r, echo = TRUE}
+
+#Histogram of Top 1000 Movie Earnings
+
+combined %>% ggplot(aes(x = Adjusted_Lifetime_Gross)) +
+  geom_histogram(bins = 100) + labs(title = "Histogram of Highest-Grossing Movies' Earnings", y = "Number of Movies", x = "Amount Grossed (2022 Ticket Sales)")
 
 ```
 
-```{r}
-
-suppressWarnings({
-#Adjusted for Inflation
-
-combined %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) +
-  geom_point() + 
-  geom_smooth() +
-  labs(title = "Adjusted Lifetime Gross by Rotten Tomatoes Score", x = "Critics' Tomato Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)")
-
-})
-```
-
-```{r}
-
-suppressWarnings({
-#Adjusted for Inflation
-
-combined %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) +
-  geom_point() + 
-  geom_smooth() +
-  labs(title = "Adjusted Lifetime Gross by Audience Score", x = "Audience Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)")
-
-})
-```
-```{r}
-
-#Use a Linear Regression Model ton find whether Audience Score or Critics' Score is More Predictive of Lifetime Earnings
-
-lm(Adjusted_Lifetime_Gross ~ tomatometer_rating, data = combined) -> CriticsScore.lm
-
-summary(CriticsScore.lm)$adj.r.squared
-
-lm(Adjusted_Lifetime_Gross ~ audience_rating, data = combined) -> AudienceScore.lm
-
-summary(AudienceScore.lm)$adj.r.squared
-
-
-```
-
-
-```{r}
+```{r, echo = TRUE}
 
 suppressWarnings({
   
@@ -188,13 +130,99 @@ for (i in 1: length(listofgenres)){
 }
 
   ByGenre %>% ggplot(aes(x = reorder(Genre, +Count), y = Count)) +
-  geom_bar(stat = "identity") + coord_flip() + labs(title = "Highest-Grossing Movies By Genre", y = "Count of Movies of that Genre in the Top 1000", x = "Genre",subtitle = "(Most Movies are Categorized into Multiple Genres)")
+  geom_bar(stat = "identity") + coord_flip() + labs(title = "Highest-Grossing Movies By Genre", y = "Count of Movies of that Genre in the Top 1000", x = "Genre",subtitle = "(Most Movies are Categorized into Multiple Genres)", caption = "Note: Only displaying genres that had at least 30 movies in the top 1000 highest-grossing movies")
 
 })
 
+rm(ByGenre, i)
+
 ```
 
+```{r, echo = TRUE}
+
+#Histogram of Audience and Rotten Tomatoes Reviews
+
+combined %>% ggplot(aes(x = tomatometer_rating)) +
+  geom_histogram(bins = 100) + labs(title = "Histogram of Tomatometer Ratings", y = "Number of Movies", x = "Tomatometer Rating")
+
+combined %>% ggplot(aes(x = audience_rating)) +
+  geom_histogram(bins = 100) + labs(title = "Histogram of Audience Ratings", y = "Number of Movies", x = "Audience Rating")
+
+
+
+```
+```{r, echo = TRUE}
+
+#Number of High-Grossing Movies over the Years
+
+ggplot(combined, aes(x = original_release_date)) + 
+geom_bar() + labs(x = "Year", y = "Number of Top 1000 Highest-Grossing Movies", title = "Number of High-Grossing Movies over the Years") 
+
+```
+
+```{r, echo = TRUE}
+
+#High-Ranking Movies by MPAA Rating
+
+ggplot(combined, aes(x = content_rating)) + 
+geom_bar() + labs(x = "MPAA Rating", y = "Number of Movies", title = "Histogram of High-Grossing Movies by MPAA rating") 
+
+```
+
+<h5> Results: <h5>
+
+Before I began to run regressions on the data, I first paused to evaluate which questions I wanted to answer: Were critics’ or audience reviews more predictive of movie earnings? Do critic/audience reviews, on average, remain unchanged or become more or less favorable over time? Are certain genres more resistant to negative reviews than others? Knowing every piece of data about the movie (its year of release, genres, rating, and reviews), which pieces of information would be most predictive? 
+To answer the first question of whether critic or audience reviews were more predictive of career earnings, I first created the scatterplots for each variable. Then, I ran a multivariate linear regression between the two variables and the ultimate movie earnings to see which variable had a greater coefficient and was thus more predictive.  
+
+
+```{r, echo = TRUE}
+
+combined %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(title = "Adjusted Lifetime Gross by Rotten Tomatoes Score", x = "Critics' Tomato Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)")
+
+combined %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) +
+  geom_point() + 
+  geom_smooth() +
+  labs(title = "Adjusted Lifetime Gross by Audience Score", x = "Audience Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)")
+
+```
+
+```{r, echo = TRUE}
+
+#Are Audience or Critic Reviews more Predictive?
+
+lm(Adjusted_Lifetime_Gross ~ audience_rating + tomatometer_rating, data = combined) -> audience_critic.lm
+
+summary(audience_critic.lm)
+
+```
+
+Because the audience score and rotten tomatoes score are both scaled equally (1-100), we can compare the coefficients directly. According to the multivariate linear regression model, for every additional 1 percentage point increase in a movie’s audience score, the adjusted lifetime gross earnings for that movie increases by \$1,497,153 on average. For every additional 1 percentage point increase in a movie’s critic score, on the other hand, the adjusted lifetime gross earnings for that movie increases by \$1,161,597 on average. While the p-value of the critics’ rating is lower than the audience rating, both are statistically significant, and it is safe to suggest that, on average, audience reviews are more predictive than critics’ reviews on a movie’s earnings. The difference in p-values likely indicates that there is greater variation in audience reviews among similarly-earning movies than critics’ reviews among those same movies.
+
+	In order to rule out a confounding variable of the year of release, we can aggregate both critic and audience reviews by year to determine whether there is a trend between the year of release and the average review score. Such a trend might indicate score inflation over time.
+
+
 ```{r}
+
+#Average Audience Score Over the Decades
+
+ggplot(combined, aes(x = original_release_date, y = tomatometer_rating)) + 
+  geom_point(stat = "summary", fun = "mean") + geom_smooth() + ylim(0,100) + labs(x = "Year of Release", y = "Average Critics Score", title = "Average Critics Score of Top 1000 Highest-Grossing Movies Over the Years") 
+
+#How has the average Audience Score Changed Over the Decades
+
+ggplot(combined, aes(x = original_release_date, y = audience_rating)) + 
+  geom_point(stat = "summary", fun = "mean") + geom_smooth() + ylim(0,100) + labs(x = "Year of Release", y = "Average Audience Rating", title = "Average Audience Score of Top 1000 Highest-Grossing Movies Over the Years") 
+
+
+```
+
+While a trend does emerge, the fact that the same general ‘dip’ in movie reviews occurs in both critic and audience reviews suggests that the decline in reviews might be more representative of a general reduction in movie quality than anything else. Similarly, because there is no evidence of inflation occurring in one medium of measurement as opposed to the other, it is fair to compare the two coefficients against one another in a multivariate regression model and assert a causal relationship. While the popularity of a movie could affect the number of critic or audience reviews it receives, the overall proportion of negative to positive reviews, and, hence, the percentage score, should remain roughly the same. 
+Then, I wanted to construct scatterplots of the audience/critic reviews for each genre versus the lifetime adjusted earnings just to see, visually, if there were any interesting patterns.
+
+```{r, echo = TRUE}
 
 #How Closely Correlated is Rotten Tomatoes Score to Gross Amount by Genre
 
@@ -203,52 +231,78 @@ for (i in 1: length(listofgenres)){
 combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Critics' Reviews and Earnings for %s Movies", listofgenres[i]), x = "Rotten Tomatoes Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
 
 print(plot)
-}
 
-```
-```{r}
-
-#How Closely Correlated is Audience Score to Gross Amount by Genre
-
-for (i in 1: length(listofgenres)){
-  
-combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Audicence Score and Earnings for %s Movies", listofgenres[i]), x = "Audience Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
+combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Audicence Score and Earnings for %s Movies", listofgenres[i]), x = "Audience Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
 
 print(plot)
 }
 
 ```
 
-```{r}
+From these graphs, it is clear that some genres, like comedies and action movies, contain a sizable number of movies that perform well at the box office despite lackluster reviews. Other genres, like horror, in particular, appear to have fairly consistent earnings independent from reviews. 
 
-suppressWarnings({
-#Adjusted for Inflation
 
-combined %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) +
-  geom_point() + 
-  geom_smooth() +
-  ylim(0,2000000000) +
-  labs(title = "Adjusted Lifetime Gross by Rotten Tomatoes Score and Rating", x = "Critics' Tomato Score", y = "Adjusted Lifetime Gross (2022 Ticket Prices)") +
-  facet_wrap(~content_rating)
+```{r, echo = TRUE}
 
-})
-```
+# Average rotten tomatoes score by genre
 
-```{r}
+Genre_df <- data.frame(matrix(nrow=1,ncol=3))
+colnames(Genre_df)[c(1,2,3)] <- c("Genre","Critic", "Audience")
 
-#How has the average Rotten Tomatoes Score Changed Over the Decades
+for (i in 1: length(listofgenres)){
+  
+combined %>% filter(grepl(listofgenres[i], genres)) %>% summarize( n = mean(tomatometer_rating)) %>% as.numeric() -> answer1
+combined %>% filter(grepl(listofgenres[i], genres)) %>% summarize( n = mean(audience_rating)) %>% as.numeric() -> answer2
 
-floor_decade = function(value){ return(value - value %% 10) }
+Genre_df[i,1] <- listofgenres[i]
+Genre_df[i,2] <- answer1
+Genre_df[i,3] <- answer2
 
-ggplot(combined, aes(x = original_release_date)) + 
-geom_bar() + labs(x = "Year", y = "Number of Top 1000 Highest-Grossing Movies", title = "Number of High-Grossing Movies over the Years") 
+}
 
-ggplot(combined, aes(x = factor(floor_decade(original_release_date)), y = tomatometer_rating)) + 
-  geom_bar(stat = "summary", fun = "mean") + labs(x = "Decade", y = "Average Critics Score", title = "Average Critics Score of Top 1000 Highest-Grossing Movies Over the Decades") 
+Genre_df %>% ggplot(aes(x = reorder(Genre, +Critic), y = Critic)) + geom_bar(stat = "identity") + labs(x= "Genre", y = "Average Critic Rating", title = "Average Critic Review Score by Genre") + coord_flip()
 
-#How has the average Audience Score Changed Over the Decades
-
-ggplot(combined, aes(x = factor(floor_decade(original_release_date)), y = audience_rating)) + 
-  geom_bar(stat = "summary", fun = "mean") + labs(x = "Decade", y = "Average Audience Rating", title = "Average Critics Score of Top 1000 Highest-Grossing Movies Over the Decades") 
+Genre_df %>% ggplot(aes(x = reorder(Genre, +Audience), y = Audience)) + geom_bar(stat = "identity") + labs(x= "Genre", y = "Average Audience Rating", title = "Average Audience Review Score by Genre") + coord_flip()
 
 ```
+
+Lastly, I conducted one last multivariate linear regression to determine which covariates (MPAA rating, reviews, genre, etc) were most predictive of adjusted lifetime earnings. 
+
+```{r, include = FALSE}
+rm(audience_critic.lm, Genre_df, plot, answer1, answer2, i)
+
+#Make Columns for Movie Genres and Ratings and Stuff
+combined$Action <- ifelse(grepl("Action", combined$genres), 1, 0)
+combined$Drama <- ifelse(grepl("Drama", combined$genres), 1, 0)
+combined$`Science Fiction & Fantasy` <- ifelse(grepl("Science Fiction & Fantasy", combined$genres), 1, 0)
+combined$Comedy <- ifelse(grepl("Comedy", combined$genres), 1, 0)
+combined$Horror <- ifelse(grepl("Horror", combined$genres), 1, 0)
+combined$`Kids & Family` <- ifelse(grepl("Kids & Family", combined$genres), 1, 0)
+combined$Mystery <- ifelse(grepl("Mystery", combined$genres), 1, 0)
+combined$Animation <- ifelse(grepl("Animation", combined$genres), 1, 0)
+combined$Musical <- ifelse(grepl("Musical", combined$genres), 1, 0)
+combined$Romance <- ifelse(grepl("Romance", combined$genres), 1, 0)
+combined$Classics <- ifelse(grepl("Classics", combined$genres), 1, 0)
+combined$R <- ifelse(combined$content_rating == "R", 1, 0)
+combined$G <- ifelse(combined$content_rating == "G", 1, 0)
+combined$NR <- ifelse(combined$content_rating == "NR", 1, 0)
+combined$PG <- ifelse(combined$content_rating == "PG", 1, 0)
+combined$`PG-13` <- ifelse(combined$content_rating == "PG-13", 1, 0)
+
+```
+
+```{r, echo = TRUE}
+
+#Overall Prediction
+
+lm(Adjusted_Lifetime_Gross ~ audience_rating + tomatometer_rating + original_release_date + Action + Drama + `Science Fiction & Fantasy` +
+     Comedy + Horror + `Kids & Family` + Mystery + Animation + Musical + Romance + Classics + R + G + NR + PG + `PG-13`, data = combined) -> overall.lm
+
+summary(overall.lm)
+
+```
+This model is clearly overfit to the data, and, for that reason, I hesitate to give much weight to this model at all. The previous model is likely more insightful when it comes to comparing how predictive audience reviews versus critic reviews are to lifetime earnings. Having said that, however, it is still interesting that some of the variables with the lowest p-values are the audience_rating, the release date, and some of the genres and MPAA ratings that produce the highest grossing movies (Action, Sci-Fi, Classics, and R-rated films). 
+
+<h5> Conclusion: <h5>
+
+Reviewing the entirety of the data analysis conducted, I believe that one of the most important takeaways from this whole study is that audience ratings are generally more predictive of box office success than critics’ reviews. This is fairly intuitive given that the audience is purchasing tickets, not critics. Similarly, it’s fascinating how classics, dramas, and musicals tend to have much higher ratings than comedies and horror movies. This could potentially be indicative of how comedies and horror movies are more resilient to poor reviews because their target audience is less likely to be concerned with the same criteria that outspoken cinephiles and critics might be. One limitation of this study is, first and foremost, a limited pool of movies to analyze. Evaluating only the top 1000 highest-grossing movies is necessarily a form of selection bias because only the most successful movies are considered. If, in the future, another study were to be conducted that sought to evaluate which covariates were the most predictive of earnings for any given film, it would be important to draw data from films that are not blockbusters. It could be very insightful to also include the budget for each film in the model. Another limitation is the use of linear regression models. In future analyses, it could be helpful to construct decision trees and random forests so as to temper the problem of overfitting. 
