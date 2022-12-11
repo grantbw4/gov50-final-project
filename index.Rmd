@@ -188,6 +188,8 @@ combined %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) +
 
 ```
 
+<p> Multivariate Regression Results (Movie Earnings ~ Audience_Score + Critics_Score <p>
+
 ```{r, echo = FALSE}
 
 #Are Audience or Critic Reviews more Predictive?
@@ -211,12 +213,12 @@ tab_model(audience_critic.lm, digits.p =2)
 #Average Audience Score Over the Decades
 
 ggplot(combined, aes(x = original_release_date, y = tomatometer_rating)) + 
-  geom_point(stat = "summary", fun = "mean") + geom_smooth() + ylim(0,100) + labs(x = "Year of Release", y = "Average Critics Score", title = "Average Critics Score of Top 1000 Highest-Grossing Movies Over the Years") 
+  geom_point(stat = "summary", fun = "mean") + geom_smooth() + ylim(0,100) + labs(x = "Year of Release", y = "Average Critics Score", title = "Average Critics Score of Top 1000 Highest-Grossing Movies \nOver the Years") 
 
 #How has the average Audience Score Changed Over the Decades
 
 ggplot(combined, aes(x = original_release_date, y = audience_rating)) + 
-  geom_point(stat = "summary", fun = "mean") + geom_smooth() + ylim(0,100) + labs(x = "Year of Release", y = "Average Audience Rating", title = "Average Audience Score of Top 1000 Highest-Grossing Movies Over the Years") 
+  geom_point(stat = "summary", fun = "mean") + geom_smooth() + ylim(0,100) + labs(x = "Year of Release", y = "Average Audience Rating", title = "Average Audience Score of Top 1000 Highest-Grossing Movies \nOver the Years") 
 
 ```
 
@@ -229,11 +231,11 @@ Then, I wanted to construct scatterplots of the audience/critic reviews for each
 
 for (i in 1: length(listofgenres)){
 
-combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Rotten Tomatoes Score and Earnings for %s Movies", listofgenres[i]), x = "Rotten Tomatoes Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
+combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = tomatometer_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Rotten Tomatoes Score \nand Earnings for %s Movies", listofgenres[i]), x = "Rotten Tomatoes Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
 
 print(plot)
 
-combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Audience Score and Earnings for %s Movies", listofgenres[i]), x = "Audience Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
+combined %>% filter(grepl(listofgenres[i], genres)) %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) + geom_point() + geom_smooth() + labs(title = sprintf("Relationship Between Audience Score \nand Earnings for %s Movies", listofgenres[i]), x = "Audience Score", y = "Earnings Adjusted for Inflation (2022 Ticket Prices)") -> plot
 
 print(plot)
 }
