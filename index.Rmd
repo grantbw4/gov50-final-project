@@ -188,7 +188,8 @@ combined %>% ggplot(aes(x = audience_rating, y = Adjusted_Lifetime_Gross)) +
 
 ```
 
-<p> Multivariate Regression Results (Movie Earnings ~ Audience_Score + Critics_Score <p>
+<p> Multivariate Regression Results (Movie Earnings ~ Audience_Score + Critics_Score) <p>
+<p><p>
 
 ```{r, echo = FALSE}
 
